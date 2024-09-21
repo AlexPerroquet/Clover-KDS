@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kitchen Display System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            padding: 20px;
+        }
+        .order {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .order h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .order p {
+            margin: 5px 0;
+            color: #666;
+        }
+        .line-item {
+            margin-left: 10px;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        .line-item:last-child {
+            border-bottom: none;
+        }
+        .line-item.completed {
+            color: #999;
+            font-weight: bold;
+        }
+        .order.completed {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kitchen Display System</h1>
+    <div class="container" id="orders-container">
+        <!-- Orders will be dynamically inserted here -->
+    </div>
+    <script>
+        const completedOrderItems = {};
+
+        function fetchOrders() {
+            fetch('/api/orders')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('orders-container');
+                    data.elements.forEach(order => {
+                        if (!completedOrderItems[order.id]) {
+                            completedOrderItems[order.id] = new Set();
+                        }
+                        const orderDiv = document.getElementById(`order-${order.id}`);
+                        if (orderDiv) {
+                            // Update existing order
+                            updateOrderDiv(orderDiv, order);
+                        } else {
+                            // Create new order
+                            const newOrderDiv = document.createElement('div');
+                            newOrderDiv.className = 'order';
+                            newOrderDiv.id = `order-${order.id}`;
+                            updateOrderDiv(newOrderDiv, order);
+                            container.appendChild(newOrderDiv);
+                        }
+                    });
+                })
+                .catch(error => console.error('Error fetching orders:', error));
+        }
+
+        function updateOrderDiv(orderDiv, order) {
+            orderDiv.innerHTML = `
+                <h2>Order ID: ${order.id}</h2>
+                <strong>${order.title}</strong><br>
+                <p>Status: ${order.state}</p>
+                <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
+                <h3>Items:</h3>
+                ${order.line_items.elements.map(item => `
+                    <div class="line-item ${completedOrderItems[order.id].has(item.id) ? 'completed' : ''}" onclick="markItemCompleted(this, '${order.id}', '${item.id}')">
+                        <p>${item.name}</p>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function markItemCompleted(item, orderId, itemId) {
+            item.classList.toggle('completed');
+            if (item.classList.contains('completed')) {
+                completedOrderItems[orderId].add(itemId);
+            } else {
+                completedOrderItems[orderId].delete(itemId);
+            }
+            checkOrderCompletion(orderId);
+        }
+
+        function checkOrderCompletion(orderId) {
+            const orderDiv = document.getElementById(`order-${orderId}`);
+            const items = orderDiv.querySelectorAll('.line-item');
+            const completedItems = orderDiv.querySelectorAll('.line-item.completed');
+            if (items.length === completedItems.length) {
+                orderDiv.classList.add('completed');
+            } else {
+                orderDiv.classList.remove('completed');
+            }
+        }
+
+        // Fetch orders every 10 seconds
+        setInterval(fetchOrders, 10000);
+
+        // Initial fetch
+        fetchOrders();
+    </script>
+</body>
+</html>

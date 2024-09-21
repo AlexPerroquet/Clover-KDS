@@ -1,0 +1,17 @@
+.env
+# Ignore Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Ignore environment variables file
+.env
+
+# Ignore virtual environment directory
+venv/
+
+# Ignore log files
+*.log
+
+# Ignore any other files or directories you want
+combined_order_data.json
+Json_Respond\combined_order_data.json
