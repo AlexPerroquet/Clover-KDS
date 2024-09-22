@@ -1,10 +1,7 @@
-import requests
 from dotenv import load_dotenv
 import os
-
-# Load environment variables from .env file
-load_dotenv()
-
+import requests
+    
 class CloverAPI:
     def __init__(self, api_key, merchant_id):
         self.api_key = api_key
@@ -17,12 +14,6 @@ class CloverAPI:
             "Content-Type": "application/json"
         }
 
-    def get_orders(self):
-        url = f"{self.base_url}/orders"
-        response = requests.get(url, headers=self.get_headers())
-        response.encoding = 'utf-8'  # Ensure UTF-8 encoding
-        return response.json()
-
     def get_items(self):
         url = f"{self.base_url}/items"
         response = requests.get(url, headers=self.get_headers())
@@ -31,6 +22,12 @@ class CloverAPI:
 
     def get_order_line_items(self, order_id):
         url = f"{self.base_url}/orders/{order_id}/line_items"
+        response = requests.get(url, headers=self.get_headers())
+        response.encoding = 'utf-8'  # Ensure UTF-8 encoding
+        return response.json()
+
+    def get_orders(self):
+        url = f"{self.base_url}/orders"
         response = requests.get(url, headers=self.get_headers())
         response.encoding = 'utf-8'  # Ensure UTF-8 encoding
         return response.json()

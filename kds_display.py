@@ -43,7 +43,7 @@ def api_orders():
     
     # Sort orders by creation time and get the latest 20 orders
     orders['elements'].sort(key=lambda x: x['createdTime'], reverse=True)
-    recent_orders = orders['elements'][:20]
+    recent_orders = orders['elements'][:10]
     
     for order in recent_orders:
         order['line_items'] = get_order_line_items_with_retry(order['id'])
@@ -56,4 +56,4 @@ def api_orders():
     return json.dumps({'elements': recent_orders})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=False)

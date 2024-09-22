@@ -52,12 +52,14 @@
 </head>
 <body>
     <h1>Kitchen Display System</h1>
+    <button onclick="completeAllOrders()">Complete All Orders</button>
+    <button onclick="toggleCompletedOrders()">Show Completed Orders</button>
     <div class="container" id="orders-container">
         <!-- Orders will be dynamically inserted here -->
     </div>
     <script>
         const completedOrderItems = {};
-
+    
         function fetchOrders() {
             fetch('/api/orders')
                 .then(response => response.json())
@@ -83,32 +85,51 @@
                 })
                 .catch(error => console.error('Error fetching orders:', error));
         }
-
+    
         function updateOrderDiv(orderDiv, order) {
+            const completedItems = [];
+            const incompleteItems = [];
+    
+            order.line_items.elements.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `line-item ${completedOrderItems[order.id].has(item.id) ? 'completed' : ''}`;
+                itemDiv.setAttribute('onclick', `markItemCompleted(this, '${order.id}', '${item.id}')`);
+                itemDiv.innerHTML = `<p>${item.name}</p>`;
+    
+                if (completedOrderItems[order.id].has(item.id)) {
+                    completedItems.push(itemDiv);
+                } else {
+                    incompleteItems.push(itemDiv);
+                }
+            });
+    
             orderDiv.innerHTML = `
                 <h2>Order ID: ${order.id}</h2>
                 <strong>${order.title}</strong><br>
                 <p>Status: ${order.state}</p>
                 <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
                 <h3>Items:</h3>
-                ${order.line_items.elements.map(item => `
-                    <div class="line-item ${completedOrderItems[order.id].has(item.id) ? 'completed' : ''}" onclick="markItemCompleted(this, '${order.id}', '${item.id}')">
-                        <p>${item.name}</p>
-                    </div>
-                `).join('')}
+                <div class="items-container">
+                    ${incompleteItems.concat(completedItems).map(itemDiv => itemDiv.outerHTML).join('')}
+                </div>
             `;
         }
-
+    
         function markItemCompleted(item, orderId, itemId) {
             item.classList.toggle('completed');
+            const orderDiv = document.getElementById(`order-${orderId}`);
+            const itemsContainer = orderDiv.querySelector('.items-container');
+    
             if (item.classList.contains('completed')) {
                 completedOrderItems[orderId].add(itemId);
+                itemsContainer.appendChild(item); // Move to the bottom
             } else {
                 completedOrderItems[orderId].delete(itemId);
+                itemsContainer.insertBefore(item, itemsContainer.firstChild); // Move to the top
             }
             checkOrderCompletion(orderId);
         }
-
+    
         function checkOrderCompletion(orderId) {
             const orderDiv = document.getElementById(`order-${orderId}`);
             const items = orderDiv.querySelectorAll('.line-item');
@@ -119,10 +140,40 @@
                 orderDiv.classList.remove('completed');
             }
         }
-
+    
+        function completeAllOrders() {
+            const orders = document.querySelectorAll('.order');
+            orders.forEach(order => {
+                const items = order.querySelectorAll('.line-item');
+                items.forEach(item => {
+                    item.classList.add('completed');
+                    const orderId = order.id.split('-')[1];
+                    const itemId = item.getAttribute('onclick').split("'")[3];
+                    completedOrderItems[orderId].add(itemId);
+                    const itemsContainer = order.querySelector('.items-container');
+                    itemsContainer.appendChild(item); // Move to the bottom
+                });
+                order.classList.add('completed');
+            });
+        }
+    
+        let showCompleted = false;
+    
+        function toggleCompletedOrders() {
+            showCompleted = !showCompleted;
+            const orders = document.querySelectorAll('.order');
+            orders.forEach(order => {
+                if (order.classList.contains('completed')) {
+                    order.style.display = showCompleted ? 'block' : 'none';
+                }
+            });
+            const button = document.querySelector('button[onclick="toggleCompletedOrders()"]');
+            button.textContent = showCompleted ? 'Hide Completed Orders' : 'Show Completed Orders';
+        }
+    
         // Fetch orders every 10 seconds
         setInterval(fetchOrders, 10000);
-
+    
         // Initial fetch
         fetchOrders();
     </script>
