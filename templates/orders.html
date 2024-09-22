@@ -55,6 +55,11 @@
             text-decoration: line-through;
             color: #888;
         }
+        .modification {
+            padding-left: 20px;
+            font-style: italic;
+            color: #555;
+        }
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -143,6 +148,15 @@
                 itemDiv.className = `line-item ${completedOrderItems[order.id].has(item.id) ? 'completed' : ''}`;
                 itemDiv.setAttribute('onclick', `markItemCompleted(this, '${order.id}', '${item.id}')`);
                 itemDiv.innerHTML = `<p>${item.name}</p>`;
+
+                if (item.modifications && item.modifications.elements) {
+                    item.modifications.elements.forEach(mod => {
+                        const modDiv = document.createElement('div');
+                        modDiv.className = 'modification';
+                        modDiv.innerHTML = `<p>${mod.name}</p>`;
+                        itemDiv.appendChild(modDiv);
+                    });
+                }
 
                 if (completedOrderItems[order.id].has(item.id)) {
                     completedItems.push(itemDiv);

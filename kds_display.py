@@ -56,6 +56,9 @@ def api_orders():
         if 'elements' in order['line_items']:
             for item in order['line_items']['elements']:
                 item['name'] = item['name'].encode('ascii', 'ignore').decode('ascii')
+                if 'modifications' in item:
+                    for mod in item['modifications']['elements']:
+                        mod['name'] = mod['name'].encode('ascii', 'ignore').decode('ascii')
 
     last_fetch_time = int(time.time() * 1000)  # Update last fetch time to current time in milliseconds
     return json.dumps({'elements': recent_orders})
