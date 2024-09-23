@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "clover-kds"
+version = "0.1.0"
+description = ""
+authors = ["AlexPerrotquet <alex@perroquet.io>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.0.3"
+python-dotenv = "^1.0.1"
+requests = "^2.32.3"
+flask-socketio = "^5.3.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
