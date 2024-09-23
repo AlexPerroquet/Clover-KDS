@@ -6,3 +6,13 @@ MERCHANT_ID = "YOUR_MERCHANT_ID"
 # to run the program you'll need to run: python kds_display.py
 
 this will open the port 5000 on your localhost that you can afterward push to the web.
+
+
+## Docker
+build: `docker build -t kds:1.0.0 .`    
+
+run: `docker run -p 5000:5000 -d kds:0.0.1`
+
+show docker process: `docker ps -a`
+
+show logs: `docker logs {container ID}`
