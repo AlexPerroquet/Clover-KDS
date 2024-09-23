@@ -7,83 +7,135 @@
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .header h1 {
+            margin: 0;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
         }
         .container {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-around;
+            justify-content: center;
             padding: 20px;
         }
         .order {
-            background-color: #ffffff;
+            background-color: #fff;
             border: 1px solid #ccc;
             border-radius: 5px;
-            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             margin: 10px;
-            width: 200px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            width: 250px;
+            transition: transform 0.2s;
         }
-        .order h2 {
-            margin-top: 0;
-            font-size: 1.2em;
-            color: #333;
-        }
-        .order p {
-            margin: 5px 0;
-            color: #666;
-        }
-        .line-item {
-            margin-left: 10px;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-        }
-        .line-item:last-child {
-            border-bottom: none;
-        }
-        .line-item.completed {
-            color: #999;
-            font-weight: bold;
+        .order:hover {
+            transform: scale(1.05);
         }
         .order.completed {
-            display: none;
+            background-color: #e0ffe0;
+        }
+        .line-item {
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .line-item.completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+        .modification {
+            padding-left: 20px;
+            font-style: italic;
+            color: #555;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .completed {
+            color: green;
         }
     </style>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
-    <h1>Kitchen Display System</h1>
-    <button onclick="completeAllOrders()">Complete All Orders</button>
-    <button onclick="toggleCompletedOrders()">Show Completed Orders</button>
+    <div class="header">
+        <h1>Kitchen Display System</h1>
+        <div class="buttons">
+            <button onclick="completeAllOrders()">Complete All Orders</button>
+            <button onclick="toggleCompletedOrders()">Show Completed Orders</button>
+        </div>
+    </div>
     <div class="container" id="orders-container">
         <!-- Orders will be dynamically inserted here -->
     </div>
     <script>
+        const socket = io();
         const completedOrderItems = {};
+        let showCompleted = true; // Initialize showCompleted state
+    
+        socket.on('update_completed_orders', data => {
+            const { order_id, item_id, completed } = data;
+            if (completed) {
+                if (!completedOrderItems[order_id]) {
+                    completedOrderItems[order_id] = new Set();
+                }
+                completedOrderItems[order_id].add(item_id);
+            } else {
+                if (completedOrderItems[order_id]) {
+                    completedOrderItems[order_id].delete(item_id);
+                }
+            }
+            fetchOrders();
+        });
     
         function fetchOrders() {
             fetch('/api/orders')
                 .then(response => response.json())
                 .then(data => {
                     const container = document.getElementById('orders-container');
+                    container.innerHTML = ''; // Clear existing orders
                     data.elements.forEach(order => {
                         if (!completedOrderItems[order.id]) {
                             completedOrderItems[order.id] = new Set();
                         }
-                        const orderDiv = document.getElementById(`order-${order.id}`);
-                        if (orderDiv) {
-                            // Update existing order
-                            updateOrderDiv(orderDiv, order);
-                        } else {
-                            // Create new order
-                            const newOrderDiv = document.createElement('div');
-                            newOrderDiv.className = 'order';
-                            newOrderDiv.id = `order-${order.id}`;
-                            updateOrderDiv(newOrderDiv, order);
-                            container.appendChild(newOrderDiv);
+                        const orderDiv = document.createElement('div');
+                        orderDiv.id = `order-${order.id}`;
+                        orderDiv.className = 'order';
+                        if (order.line_items.elements.every(item => completedOrderItems[order.id].has(item.id))) {
+                            orderDiv.classList.add('completed');
                         }
+                        updateOrderDiv(orderDiv, order);
+                        container.appendChild(orderDiv);
                     });
+                    applyShowCompletedState(); // Apply the current state of showCompleted
                 })
                 .catch(error => console.error('Error fetching orders:', error));
+        }
+    
+        function fetchCompletedOrders() {
+            fetch('/api/completed_orders')
+                .then(response => response.json())
+                .then(data => {
+                    for (const [orderId, itemIds] of Object.entries(data)) {
+                        completedOrderItems[orderId] = new Set(itemIds);
+                    }
+                    fetchOrders();
+                })
+                .catch(error => console.error('Error fetching completed orders:', error));
         }
     
         function updateOrderDiv(orderDiv, order) {
@@ -96,6 +148,15 @@
                 itemDiv.setAttribute('onclick', `markItemCompleted(this, '${order.id}', '${item.id}')`);
                 itemDiv.innerHTML = `<p>${item.name}</p>`;
     
+                if (item.modifications && item.modifications.elements) {
+                    item.modifications.elements.forEach(mod => {
+                        const modDiv = document.createElement('div');
+                        modDiv.className = 'modification';
+                        modDiv.innerHTML = `<p>${mod.name}</p>`;
+                        itemDiv.appendChild(modDiv);
+                    });
+                }
+    
                 if (completedOrderItems[order.id].has(item.id)) {
                     completedItems.push(itemDiv);
                 } else {
@@ -105,8 +166,8 @@
     
             orderDiv.innerHTML = `
                 <h2>Order ID: ${order.id}</h2>
-                <strong>${order.title}</strong><br>
-                <p>Status: ${order.state}</p>
+                <strong>${order.title === undefined || order.title === null ? "Delivery" : order.title}</strong><br>
+                <p>Status: ${order.state === "locked" || order.state === null ? "Paid" : order.state}</p>
                 <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
                 <h3>Items:</h3>
                 <div class="items-container">
@@ -120,7 +181,8 @@
             const orderDiv = document.getElementById(`order-${orderId}`);
             const itemsContainer = orderDiv.querySelector('.items-container');
     
-            if (item.classList.contains('completed')) {
+            const completed = item.classList.contains('completed');
+            if (completed) {
                 completedOrderItems[orderId].add(itemId);
                 itemsContainer.appendChild(item); // Move to the bottom
             } else {
@@ -128,6 +190,15 @@
                 itemsContainer.insertBefore(item, itemsContainer.firstChild); // Move to the top
             }
             checkOrderCompletion(orderId);
+    
+            // Update server with the new state
+            fetch('/api/completed_orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ order_id: orderId, item_id: itemId, completed: completed })
+            }).catch(error => console.error('Error updating completed order:', error));
         }
     
         function checkOrderCompletion(orderId) {
@@ -152,15 +223,26 @@
                     completedOrderItems[orderId].add(itemId);
                     const itemsContainer = order.querySelector('.items-container');
                     itemsContainer.appendChild(item); // Move to the bottom
+    
+                    // Update server with the new state
+                    fetch('/api/completed_orders', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ order_id: orderId, item_id: itemId, completed: true })
+                    }).catch(error => console.error('Error updating completed order:', error));
                 });
                 order.classList.add('completed');
             });
         }
     
-        let showCompleted = false;
-    
         function toggleCompletedOrders() {
-            showCompleted = !showCompleted;
+            showCompleted = !showCompleted; // Toggle the state
+            applyShowCompletedState();
+        }
+    
+        function applyShowCompletedState() {
             const orders = document.querySelectorAll('.order');
             orders.forEach(order => {
                 if (order.classList.contains('completed')) {
@@ -171,11 +253,9 @@
             button.textContent = showCompleted ? 'Hide Completed Orders' : 'Show Completed Orders';
         }
     
-        // Fetch orders every 10 seconds
-        setInterval(fetchOrders, 10000);
+        // Fetch completed orders and then fetch orders every 10 seconds
+        setInterval(fetchCompletedOrders, 10000);
     
         // Initial fetch
-        fetchOrders();
+        fetchCompletedOrders();
     </script>
-</body>
-</html>

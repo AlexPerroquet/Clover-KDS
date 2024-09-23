@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import os
 import requests
     
@@ -21,7 +20,7 @@ class CloverAPI:
         return response.json()
 
     def get_order_line_items(self, order_id):
-        url = f"{self.base_url}/orders/{order_id}/line_items"
+        url = f"{self.base_url}/orders/{order_id}/line_items?expand=modifications"
         response = requests.get(url, headers=self.get_headers())
         response.encoding = 'utf-8'  # Ensure UTF-8 encoding
         return response.json()
