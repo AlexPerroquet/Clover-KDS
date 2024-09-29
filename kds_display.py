@@ -6,6 +6,8 @@ from flask_socketio import SocketIO, emit
 from clover_api import CloverAPI
 from dotenv import load_dotenv
 import os
+import datetime
+import pytz
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,6 +39,21 @@ def get_order_line_items_with_retry(order_id, retries=5, backoff_in_seconds=1):
     logging.error(f"Failed to get line items for order ID: {order_id} after {retries} retries.")
     return {}
 
+def convert_unix_to_human_readable(unix_timestamp):
+    created_time_seconds = unix_timestamp / 1000
+    utc_time = datetime.datetime.fromtimestamp(created_time_seconds, pytz.UTC)
+    local_tz = pytz.timezone('US/Eastern')
+    local_time = utc_time.astimezone(local_tz)
+    return local_time.strftime('%d-%b-%Y %H:%M')
+
+def is_order_from_today(unix_timestamp):
+    created_time_seconds = unix_timestamp / 1000
+    utc_time = datetime.datetime.fromtimestamp(created_time_seconds, pytz.UTC)
+    local_tz = pytz.timezone('US/Eastern')
+    local_time = utc_time.astimezone(local_tz)
+    today = datetime.datetime.now(local_tz).date()
+    return local_time.date() == today
+
 @app.route('/')
 def display_orders():
     return render_template('orders.html')
@@ -50,7 +67,9 @@ def api_orders():
     orders['elements'].sort(key=lambda x: x['createdTime'], reverse=True)
     recent_orders = orders['elements'][:10]
     
-    for order in recent_orders:
+    filtered_orders = [order for order in recent_orders if is_order_from_today(order['createdTime'])]
+    
+    for order in filtered_orders:
         order['line_items'] = get_order_line_items_with_retry(order['id'])
         
         if 'elements' in order['line_items']:
@@ -59,9 +78,15 @@ def api_orders():
                 if 'modifications' in item:
                     for mod in item['modifications']['elements']:
                         mod['name'] = mod['name'].encode('ascii', 'ignore').decode('ascii')
+        
+        # Convert the createdTime to a human-readable format
+        order['createdTimeHumanReadable'] = convert_unix_to_human_readable(order['createdTime'])
+        # Include the raw createdTime for calculating elapsed time
+        order['createdTimeRaw'] = order['createdTime']
 
     last_fetch_time = int(time.time() * 1000)  # Update last fetch time to current time in milliseconds
-    return json.dumps({'elements': recent_orders})
+    
+    return json.dumps({'elements': filtered_orders})
 
 @app.route('/api/completed_orders', methods=['GET', 'POST'])
 def api_completed_orders():
@@ -91,5 +116,3 @@ def api_completed_orders():
 
 if __name__ == "__main__":
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
-    
-    
