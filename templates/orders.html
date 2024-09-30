@@ -99,25 +99,66 @@
         });
 
         function fetchOrders() {
-            fetch('/api/orders')
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('orders-container');
-                    container.innerHTML = '';
-                    data.elements.forEach(order => {
-                        if (!completedOrderItems[order.id]) {
-                            completedOrderItems[order.id] = new Set();
+        fetch('/api/orders')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('orders-container');
+                container.innerHTML = '';
+                data.elements.forEach(order => {
+                    if (!completedOrderItems[order.id]) {
+                        completedOrderItems[order.id] = new Set();
+                    }
+
+                    const orderDiv = document.createElement('div');
+                    orderDiv.className = `order ${Array.from(order.line_items.elements).every(item => completedOrderItems[order.id].has(item.id)) ? 'completed' : ''}`;
+                    orderDiv.id = `order-${order.id}`;
+                    orderDiv.dataset.createdTime = order.createdTime;
+
+                    const incompleteItems = [];
+                    const completedItems = [];
+
+                    order.line_items.elements.forEach(item => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = `line-item ${completedOrderItems[order.id].has(item.id) ? 'completed' : ''}`;
+                        itemDiv.setAttribute('onclick', `markItemCompleted(this, '${order.id}', '${item.id}')`);
+                        itemDiv.innerHTML = `<p>${item.name}</p>`;
+
+                        if (item.modifications && item.modifications.elements) {
+                            item.modifications.elements.forEach(mod => {
+                                const modDiv = document.createElement('div');
+                                modDiv.className = 'modification';
+                                modDiv.innerHTML = `<p>${mod.name}</p>`;
+                                itemDiv.appendChild(modDiv);
+                            });
                         }
-                        const orderDiv = document.createElement('div');
-                        orderDiv.className = 'order';
-                        orderDiv.id = `order-${order.id}`;
-                        orderDiv.dataset.createdTime = order.createdTime; // Store created time in data attribute
-                        updateOrderDiv(orderDiv, order);
-                        container.appendChild(orderDiv);
+
+                        if (completedOrderItems[order.id].has(item.id)) {
+                            completedItems.push(itemDiv);
+                        } else {
+                            incompleteItems.push(itemDiv);
+                        }
                     });
-                    applyShowCompletedState(); // Apply the current state of showCompleted
+
+                    const isOrderCompleted = order.line_items.elements.every(item => completedOrderItems[order.id].has(item.id));
+                    const createdTimeText = isOrderCompleted ? 'Completed' : getElapsedTime(order.createdTime);
+
+                    orderDiv.innerHTML = `
+                        <h2>Order ID: ${order.id}</h2>
+                        <p class="created-time">Created: ${createdTimeText}</p>
+                        <strong>${order.title === undefined || order.title === null ? "Delivery" : order.title}</strong><br>
+                        <p>Status: ${order.state === "locked" || order.state === null ? "Paid" : order.state}</p>
+                        <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
+                        <h3>Items:</h3>
+                        <div class="items-container">
+                            ${incompleteItems.concat(completedItems).map(itemDiv => itemDiv.outerHTML).join('')}
+                        </div>
+                    `;
+
+                    container.appendChild(orderDiv);
                 });
-        }
+                applyShowCompletedState(); // Apply the current state of showCompleted
+            });
+    }
 
         function updateOrderDiv(orderDiv, order) {
             const completedItems = [];
@@ -201,7 +242,7 @@
             const createdTimeElement = orderDiv.querySelector('.created-time');
             if (items.length === completedItems.length) {
                 orderDiv.classList.add('completed');
-                createdTimeElement.textContent = 'Created: Completed';
+                createdTimeElement.textContent = 'Completed';
             } else {
                 orderDiv.classList.remove('completed');
                 createdTimeElement.textContent = `Created: ${getElapsedTime(orderDiv.dataset.createdTime)}`;
