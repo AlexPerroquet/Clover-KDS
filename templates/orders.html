@@ -85,18 +85,22 @@
         let showCompleted = true;
 
         socket.on('update_completed_orders', data => {
-            const { order_id, item_id, completed } = data;
-            if (completed) {
-                if (!completedOrderItems[order_id]) {
-                    completedOrderItems[order_id] = new Set();
-                }
-                completedOrderItems[order_id].add(item_id);
-            } else {
-                if (completedOrderItems[order_id]) {
+        const { order_id, item_id, completed } = data;
+        const orderDiv = document.getElementById(`order-${order_id}`);
+        if (orderDiv) {
+            const itemDiv = orderDiv.querySelector(`.line-item[onclick*="'${item_id}'"]`);
+            if (itemDiv) {
+                if (completed) {
+                    itemDiv.classList.add('completed');
+                    completedOrderItems[order_id].add(item_id);
+                } else {
+                    itemDiv.classList.remove('completed');
                     completedOrderItems[order_id].delete(item_id);
                 }
+                checkOrderCompletion(order_id);
             }
-        });
+        }
+    });
 
         function fetchOrders() {
         fetch('/api/orders')
@@ -236,18 +240,18 @@
         }
 
         function checkOrderCompletion(orderId) {
-            const orderDiv = document.getElementById(`order-${orderId}`);
-            const items = orderDiv.querySelectorAll('.line-item');
-            const completedItems = orderDiv.querySelectorAll('.line-item.completed');
-            const createdTimeElement = orderDiv.querySelector('.created-time');
-            if (items.length === completedItems.length) {
-                orderDiv.classList.add('completed');
-                createdTimeElement.textContent = 'Completed';
-            } else {
-                orderDiv.classList.remove('completed');
-                createdTimeElement.textContent = `Created: ${getElapsedTime(orderDiv.dataset.createdTime)}`;
-            }
+        const orderDiv = document.getElementById(`order-${orderId}`);
+        const items = orderDiv.querySelectorAll('.line-item');
+        const completedItems = orderDiv.querySelectorAll('.line-item.completed');
+        const createdTimeElement = orderDiv.querySelector('.created-time');
+        if (items.length === completedItems.length) {
+            orderDiv.classList.add('completed');
+            createdTimeElement.textContent = 'Completed';
+        } else {
+            orderDiv.classList.remove('completed');
+            createdTimeElement.textContent = `Created: ${getElapsedTime(orderDiv.dataset.createdTime)}`;
         }
+    }
 
         function completeAllOrders() {
             const orders = document.querySelectorAll('.order');
