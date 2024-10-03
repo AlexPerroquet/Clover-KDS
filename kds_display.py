@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import os
 import datetime
 import pytz
+from unidecode import unidecode
 
 # Load environment variables from .env file
 load_dotenv()
@@ -63,7 +64,7 @@ def api_orders():
     global last_fetch_time
     orders = clover.get_orders()
     
-    # Sort orders by creation time and get the latest 20 orders
+    # Sort orders by creation time and get the latest 10 orders
     orders['elements'].sort(key=lambda x: x['createdTime'], reverse=True)
     recent_orders = orders['elements'][:10]
     
@@ -74,10 +75,9 @@ def api_orders():
         
         if 'elements' in order['line_items']:
             for item in order['line_items']['elements']:
-                item['name'] = item['name'].encode('ascii', 'ignore').decode('ascii')
                 if 'modifications' in item:
                     for mod in item['modifications']['elements']:
-                        mod['name'] = mod['name'].encode('ascii', 'ignore').decode('ascii')
+                        mod['name'] = unidecode(mod['name'])
         
         # Convert the createdTime to a human-readable format
         order['createdTimeHumanReadable'] = convert_unix_to_human_readable(order['createdTime'])

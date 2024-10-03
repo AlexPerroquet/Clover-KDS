@@ -5,6 +5,7 @@ import json
 import datetime
 import pytz
 from dotenv import load_dotenv
+from unidecode import unidecode
 
 # Load environment variables from .env file
 load_dotenv()
@@ -65,6 +66,11 @@ class CloverAPI:
                 
                 # Append the modifiers to the line item
                 line_item['modifiers'] = modifiers
+
+                # Convert Unicode to ASCII in line item name and modifiers
+                line_item['name'] = unidecode(line_item.get('name', ''))
+                for modifier in line_item['modifiers']:
+                    modifier['name'] = unidecode(modifier.get('name', ''))
         
         return order
 

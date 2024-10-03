@@ -6,7 +6,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            background-color: #646464;
             margin: 0;
             padding: 0;
         }
@@ -26,17 +26,18 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            padding: 10px;
+            padding: 5px;
         }
         .order {
             background-color: #ffffff;
             border: 1px solid #ccc;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin: 10px;
-            padding: 15px;
-            width: 250px;
+            margin: 5px;
+            padding: 10px;
+            width: 200px;
             transition: transform 0.2s;
+            
         }
         .order:hover {
             transform: scale(1.05);
@@ -48,9 +49,13 @@
             padding: 5px;
             border-bottom: 1px solid #ddd;
         }
+        .line-item{
+            color:red;
+            font-weight: bold;
+        }
         .line-item.completed {
             text-decoration: line-through;
-            color: #888;
+            color: #a4a4a4;
         }
         .modification {
             padding-left: 20px;
@@ -72,7 +77,6 @@
     <div class="header">
         <h1>Kitchen Display System</h1>
         <div class="buttons">
-            <button onclick="completeAllOrders()">Complete All Orders</button>
             <button onclick="toggleCompletedOrders()">Show Completed Orders</button>
         </div>
     </div>
@@ -147,12 +151,8 @@
                     const createdTimeText = isOrderCompleted ? 'Completed' : getElapsedTime(order.createdTime);
 
                     orderDiv.innerHTML = `
-                        <h2>Order ID: ${order.id}</h2>
+                        <h2>${order.title === undefined || order.title === null ? "Delivery" : order.title}</h2>
                         <p class="created-time">Created: ${createdTimeText}</p>
-                        <strong>${order.title === undefined || order.title === null ? "Delivery" : order.title}</strong><br>
-                        <p>Status: ${order.state === "locked" || order.state === null ? "Paid" : order.state}</p>
-                        <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
-                        <h3>Items:</h3>
                         <div class="items-container">
                             ${incompleteItems.concat(completedItems).map(itemDiv => itemDiv.outerHTML).join('')}
                         </div>
@@ -190,16 +190,12 @@
                 }
             });
 
-            const isOrderCompleted = order.line_items.elements.every(item => completedOrderItems[order.id].has(item.id));
+            const isOrderCompleted = order.isCompleted !== undefined ? order.isCompleted : order.line_items.elements.every(item => completedOrderItems[order.id].has(item.id));
             const createdTimeText = isOrderCompleted ? 'Completed' : getElapsedTime(order.createdTime);
 
             orderDiv.innerHTML = `
-                <h2>Order ID: ${order.id}</h2>
-                <p class="created-time">Created: ${createdTimeText}</p>
-                <strong>${order.title === undefined || order.title === null ? "Delivery" : order.title}</strong><br>
-                <p>Status: ${order.state === "locked" || order.state === null ? "Paid" : order.state}</p>
-                <p>Total: $${(order.total / 100.0).toFixed(2)}</p>
-                <h3>Items:</h3>
+                <h2>${order.title === undefined || order.title === null ? "Delivery" : order.title}</h2>
+                ${isOrderCompleted ? '<p>Completed</p>' : `<p class="created-time">Created: ${createdTimeText}</p>`}
                 <div class="items-container">
                     ${incompleteItems.concat(completedItems).map(itemDiv => itemDiv.outerHTML).join('')}
                 </div>
@@ -228,6 +224,10 @@
                 itemsContainer.insertBefore(item, itemsContainer.firstChild); // Move to the top
             }
             checkOrderCompletion(orderId);
+
+            // Assuming you have a way to get the order object, like a getOrder function
+            const order = getOrder(orderId);
+            order.isCompleted = completed;
 
             // Update server with the new state
             fetch('/api/completed_orders', {
@@ -278,6 +278,7 @@
                 const createdTimeElement = order.querySelector('.created-time');
                 createdTimeElement.textContent = 'Created: Completed';
             });
+            applyShowCompletedState(); // Update visibility of all orders
         }
 
         function toggleCompletedOrders() {
@@ -292,7 +293,6 @@
                     order.style.display = showCompleted ? 'block' : 'none';
                 }
             });
-            const button = document.querySelector('button[onclick="toggleCompletedOrders()"]');
             button.textContent = showCompleted ? 'Hide Completed Orders' : 'Show Completed Orders';
         }
 
