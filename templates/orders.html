@@ -68,6 +68,7 @@
         .completed {
             color: green;
         }
+        
     </style>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
@@ -75,15 +76,28 @@
     <div class="header">
         <h1>Kitchen Display System</h1>
         <div class="buttons">
+<<<<<<< Updated upstream
             <button onclick="completeAllOrders()">Complete All Orders</button>
             <button onclick="toggleCompletedOrders()">Show Completed Orders</button>
+=======
+            <button id="toggle-completed-btn" onclick="toggleCompletedOrders()">Show Completed Orders</button>
+                        <button id="fullscreen-btn" onclick="toggleFullscreen()">Toggle Fullscreen</button>
+            <button onclick="enableAudio()">Enable Notifications</button>
+>>>>>>> Stashed changes
         </div>
     </div>
     <div class="container" id="orders-container">
         <!-- Orders will be dynamically inserted here -->
     </div>
+
+    <audio id="notificationSound">
+        <source src="/static/notification.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <script>
         const socket = io();
+<<<<<<< Updated upstream
         const completedOrderItems = {};
         let showCompleted = true; // Initialize showCompleted state
     
@@ -102,10 +116,109 @@
             fetchOrders();
         });
     
+=======
+        let completedOrderItems = {};
+
+        let showCompleted = false;
+        let audioEnabled = false;
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('init_completed_orders', (data) => {
+            console.log('Received initial completed orders:', data);
+            completedOrderItems = data;
+            updateAllOrdersUI();
+        });
+
+        socket.on('update_completed_orders', (data) => {
+            console.log('Received update for completed orders:', data);
+            updateCompletedOrderItems(data.order_id, data.item_id, data.completed);
+            updateOrderUI(data.order_id);
+        });
+
+        function updateCompletedOrderItems(orderId, itemId, completed) {
+            if (!completedOrderItems[orderId]) {
+                completedOrderItems[orderId] = [];
+            }
+            if (completed) {
+                if (!completedOrderItems[orderId].includes(itemId)) {
+                    completedOrderItems[orderId].push(itemId);
+                }
+            } else {
+                completedOrderItems[orderId] = completedOrderItems[orderId].filter(id => id !== itemId);
+            }
+        }
+
+        function updateAllOrdersUI() {
+            for (const orderId in completedOrderItems) {
+                updateOrderUI(orderId);
+            }
+        }
+
+        function updateOrderUI(orderId) {
+            const orderDiv = document.getElementById(`order-${orderId}`);
+            if (orderDiv) {
+                const itemsContainer = orderDiv.querySelector('.items-container');
+                const items = Array.from(itemsContainer.querySelectorAll('.line-item'));
+                
+                items.forEach(item => {
+                    const uniqueId = item.getAttribute('data-unique-id');
+                    if (completedOrderItems[orderId] && completedOrderItems[orderId].includes(uniqueId)) {
+                        item.classList.add('completed');
+                    } else {
+                        item.classList.remove('completed');
+                    }
+                });
+
+                // Sort items: incomplete first, then completed
+                items.sort((a, b) => {
+                    const aCompleted = a.classList.contains('completed');
+                    const bCompleted = b.classList.contains('completed');
+                    return aCompleted - bCompleted;
+                });
+
+                // Reorder items in the DOM
+                items.forEach(item => itemsContainer.appendChild(item));
+
+                checkOrderCompletion(orderId);
+            }
+        }
+
+        function markItemCompleted(orderId, uniqueId) {
+            const item = document.querySelector(`#order-${orderId} .line-item[data-unique-id="${uniqueId}"]`);
+            const completed = !item.classList.contains('completed');
+            
+            // Update local UI immediately
+            item.classList.toggle('completed');
+
+            // Update completedOrderItems
+            if (!completedOrderItems[orderId]) {
+                completedOrderItems[orderId] = [];
+            }
+            if (completed) {
+                if (!completedOrderItems[orderId].includes(uniqueId)) {
+                    completedOrderItems[orderId].push(uniqueId);
+                }
+            } else {
+                completedOrderItems[orderId] = completedOrderItems[orderId].filter(id => id !== uniqueId);
+            }
+
+            updateOrderUI(orderId);
+
+            // Send update to server
+            socket.emit('update_completed_orders', { order_id: orderId, item_id: uniqueId, completed: completed });
+        }
+
+        let previousOrdersData = {};
+
+>>>>>>> Stashed changes
         function fetchOrders() {
             fetch('/api/orders')
                 .then(response => response.json())
                 .then(data => {
+<<<<<<< Updated upstream
                     const container = document.getElementById('orders-container');
                     container.innerHTML = ''; // Clear existing orders
                     data.elements.forEach(order => {
@@ -117,10 +230,86 @@
                         orderDiv.className = 'order';
                         if (order.line_items.elements.every(item => completedOrderItems[order.id].has(item.id))) {
                             orderDiv.classList.add('completed');
+=======
+                    let shouldPlaySound = false;
+                    const container = document.getElementById('orders-container');
+                    
+                    data.elements.forEach(order => {
+                        if (!previousOrdersData[order.id]) {
+                            shouldPlaySound = true;
+                        } else {
+                            const previousItems = new Set(previousOrdersData[order.id].map(item => generateUniqueId(item)));
+                            const currentItems = new Set(order.line_items.elements.map(item => generateUniqueId(item)));
+                            if (currentItems.size > previousItems.size) {
+                                shouldPlaySound = true;
+                            }
+                        }
+
+                        // Update the DOM for this order (existing code here)
+                        let orderDiv = document.getElementById(`order-${order.id}`);
+                        if (!orderDiv) {
+                            orderDiv = document.createElement('div');
+                            orderDiv.className = 'order';
+                            orderDiv.id = `order-${order.id}`;
+                            container.appendChild(orderDiv);
+                        }
+                        orderDiv.dataset.createdTime = order.createdTimeRaw;
+
+                        let orderHtml = `
+                            <h2>${order.title || "Delivery"}</h2>
+                            <p class="created-time">Created: ${order.createdTimeHumanReadable}</p>
+                            <div class="items-container">
+                        `;
+
+                        const existingItems = Array.from(orderDiv.querySelectorAll('.line-item')).map(item => ({
+                            uniqueId: item.getAttribute('data-unique-id'),
+                            element: item
+                        }));
+
+                        order.line_items.elements.forEach(item => {
+                            const uniqueId = generateUniqueId(item);
+                            const existingItem = existingItems.find(ei => ei.uniqueId === uniqueId);
+                            const itemCompleted = existingItem ? existingItem.element.classList.contains('completed') : false;
+
+                            orderHtml += `
+                                <div class="line-item ${itemCompleted ? 'completed' : ''}" 
+                                     onclick="markItemCompleted('${order.id}', '${uniqueId}')"
+                                     data-unique-id="${uniqueId}">
+                                    <p>${item.name}</p>
+                            `;
+
+                            // Add note if it exists
+                            if (item.note) {
+                                orderHtml += `<div class="modification"><p>${item.note}</p></div>`;
+                            }
+
+                            // Add modifications
+                            if (item.modifications && item.modifications.elements) {
+                                item.modifications.elements.forEach(mod => {
+                                    orderHtml += `<div class="modification"><p>${mod.name}</p></div>`;
+                                });
+                            }
+
+                            orderHtml += `</div>`;
+                        });
+
+                        orderHtml += `</div>`;
+                        orderDiv.innerHTML = orderHtml;
+                        updateOrderUI(order.id);
+                    });
+
+                    // Remove orders that no longer exist
+                    const currentOrderIds = new Set(data.elements.map(order => order.id));
+                    Array.from(container.children).forEach(orderDiv => {
+                        const orderId = orderDiv.id.split('-')[1];
+                        if (!currentOrderIds.has(orderId)) {
+                            container.removeChild(orderDiv);
+>>>>>>> Stashed changes
                         }
                         updateOrderDiv(orderDiv, order);
                         container.appendChild(orderDiv);
                     });
+<<<<<<< Updated upstream
                     applyShowCompletedState(); // Apply the current state of showCompleted
                 })
                 .catch(error => console.error('Error fetching orders:', error));
@@ -138,6 +327,44 @@
                 .catch(error => console.error('Error fetching completed orders:', error));
         }
     
+=======
+
+                    if (shouldPlaySound) {
+                        playNotificationSound();
+                    }
+
+                    // Update the previous orders data for the next comparison
+                    previousOrdersData = data.elements.reduce((acc, order) => {
+                        acc[order.id] = order.line_items.elements;
+                        return acc;
+                    }, {});
+
+                    applyShowCompletedState();
+                });
+        }
+
+        function generateUniqueId(item) {
+            let id = item.name;
+            if (item.note) {
+                id += '|' + item.note;
+            }
+            if (item.modifications && item.modifications.elements) {
+                id += '|' + item.modifications.elements.map(mod => mod.name).join(',');
+            }
+            return id;
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+>>>>>>> Stashed changes
         function updateOrderDiv(orderDiv, order) {
             const completedItems = [];
             const incompleteItems = [];
@@ -175,6 +402,7 @@
                 </div>
             `;
         }
+<<<<<<< Updated upstream
     
         function markItemCompleted(item, orderId, itemId) {
             item.classList.toggle('completed');
@@ -201,10 +429,22 @@
             }).catch(error => console.error('Error updating completed order:', error));
         }
     
+=======
+
+        function getElapsedTime(createdTime) {
+            const now = new Date().getTime();
+            const elapsed = now - createdTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+>>>>>>> Stashed changes
         function checkOrderCompletion(orderId) {
             const orderDiv = document.getElementById(`order-${orderId}`);
             const items = orderDiv.querySelectorAll('.line-item');
             const completedItems = orderDiv.querySelectorAll('.line-item.completed');
+<<<<<<< Updated upstream
             if (items.length === completedItems.length) {
                 orderDiv.classList.add('completed');
             } else {
@@ -212,6 +452,18 @@
             }
         }
     
+=======
+            const createdTimeElement = orderDiv.querySelector('.created-time');
+            if (items.length === completedItems.length) {
+                orderDiv.classList.add('completed');
+                createdTimeElement.textContent = 'Completed';
+            } else {
+                orderDiv.classList.remove('completed');
+                createdTimeElement.textContent = `Created: ${getElapsedTime(orderDiv.dataset.createdTime)}`;
+            }
+        }
+
+>>>>>>> Stashed changes
         function completeAllOrders() {
             const orders = document.querySelectorAll('.order');
             orders.forEach(order => {
@@ -238,7 +490,9 @@
         }
     
         function toggleCompletedOrders() {
-            showCompleted = !showCompleted; // Toggle the state
+            showCompleted = !showCompleted;
+            const button = document.getElementById('toggle-completed-btn');
+            button.textContent = showCompleted ? 'Hide Completed Orders' : 'Show Completed Orders';
             applyShowCompletedState();
         }
     
@@ -249,13 +503,57 @@
                     order.style.display = showCompleted ? 'block' : 'none';
                 }
             });
+<<<<<<< Updated upstream
             const button = document.querySelector('button[onclick="toggleCompletedOrders()"]');
             button.textContent = showCompleted ? 'Hide Completed Orders' : 'Show Completed Orders';
         }
     
+=======
+        }
+
+        function updateElapsedTime() {
+            const orders = document.querySelectorAll('.order');
+            orders.forEach(order => {
+                const createdTimeElement = order.querySelector('.created-time');
+                if (!order.classList.contains('completed')) {
+                    createdTimeElement.textContent = `Created: ${getElapsedTime(order.dataset.createdTime)}`;
+                }
+            });
+        }
+
+        function enableAudio() {
+            audioEnabled = true;
+            const audio = document.getElementById('notificationSound');
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }).catch(error => {
+                console.error('Error enabling audio:', error);
+            });
+        }
+
+        function playNotificationSound() {
+            if (!audioEnabled) {
+                return;
+            }
+            const audio = document.getElementById('notificationSound');
+            audio.play().catch(error => {
+                console.error('Error playing sound:', error);
+            });
+        }
+
+>>>>>>> Stashed changes
         // Fetch completed orders and then fetch orders every 10 seconds
         setInterval(fetchCompletedOrders, 10000);
     
         // Initial fetch
+<<<<<<< Updated upstream
         fetchCompletedOrders();
     </script>
+=======
+        fetchOrders();
+
+    </script>
+</body>
+</html>
+>>>>>>> Stashed changes

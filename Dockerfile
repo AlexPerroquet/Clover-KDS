@@ -19,9 +19,15 @@ FROM python:3.12-slim AS runtime
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
 
+WORKDIR /app
+
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
-
 COPY . .
-EXPOSE 5000
-ENTRYPOINT ["python", "kds_display.py"]
 
+EXPOSE 5000
+
+# Install gunicorn
+RUN pip install gunicorn eventlet
+
+# Run the application with Gunicorn
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "--bind", "0.0.0.0:5000", "kds_display:app"]

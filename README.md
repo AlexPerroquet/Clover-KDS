@@ -9,9 +9,9 @@ this will open the port 5000 on your localhost that you can afterward push to th
 
 
 ## Docker
-build: `docker build -t kds:1.0.0 .`    
+build: `docker build -t kds:2.2.3 .`    
 
-run: `docker run -p 5000:5000 -d kds:0.0.1`
+run: `docker run -p 5000:5000 -d kds:2.2.3`
 
 show docker process: `docker ps -a`
 
